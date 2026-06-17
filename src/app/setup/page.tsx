@@ -1,0 +1,10 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Brand } from "@/components/brand";
+
+export default function SetupPage(){
+  const [error,setError]=useState("");const [busy,setBusy]=useState(false);const router=useRouter();
+  async function submit(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setError("");const form=new FormData(e.currentTarget);const res=await fetch("/api/setup",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});const data=await res.json();setBusy(false);if(!res.ok){setError(data.error||"Setup failed");return}router.replace("/admin");router.refresh()}
+  return <main className="login"><section className="login-panel"><Brand/><div className="login-main"><div className="eyebrow">One-time production setup</div><h1>Create the first administrator.</h1><p className="lead">This route permanently locks after the first owner account is created.</p>{error&&<div className="error" role="alert">{error}</div>}<form onSubmit={submit}><div className="field"><label>Setup token</label><input name="setupToken" type="password" required/></div><div className="field"><label>Organization name</label><input name="organizationName" required/></div><div className="field"><label>Organization code</label><input name="organizationSlug" placeholder="example-university" pattern="[a-z0-9-]+" required/></div><div className="field"><label>Your name</label><input name="name" required/></div><div className="field"><label>Administrator email</label><input name="email" type="email" required/></div><div className="field"><label>Administrator password</label><input name="password" type="password" minLength={12} required/></div><button className="btn btn-primary btn-block" disabled={busy}>{busy?"Creating secure account…":"Create owner account"}</button></form></div></section><aside className="login-visual"><blockquote>Establish the trusted owner of this election system.</blockquote><p>Use a unique setup token and a password of at least 12 characters.</p></aside></main>
+}
