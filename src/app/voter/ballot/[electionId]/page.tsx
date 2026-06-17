@@ -1,0 +1,8 @@
+import { and, asc, eq } from "drizzle-orm";
+import { notFound, redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { candidates, elections, eligibility, positions } from "@/lib/db/schema";
+import { requireRole } from "@/lib/auth/session";
+import { BallotForm } from "@/components/ballot-form";
+export const dynamic="force-dynamic";
+export default async function BallotPage({params}:{params:Promise<{electionId:string}>}){const session=await requireRole("voter");const {electionId}=await params;const [access]=await db.select().from(eligibility).where(and(eq(eligibility.voterId,session.sub),eq(eligibility.electionId,electionId),eq(eligibility.eligible,true))).limit(1);if(!access)notFound();if(access.votedAt)redirect("/voter");const [election]=await db.select().from(elections).where(and(eq(elections.id,electionId),eq(elections.status,"open"))).limit(1);if(!election)notFound();const pos=await db.select().from(positions).where(eq(positions.electionId,electionId)).orderBy(asc(positions.sortOrder));const cand=await db.select().from(candidates).innerJoin(positions,eq(candidates.positionId,positions.id)).where(and(eq(positions.electionId,electionId),eq(candidates.active,true))).orderBy(asc(candidates.sortOrder));const model=pos.map(p=>({...p,candidates:cand.filter(x=>x.candidates.positionId===p.id).map(x=>x.candidates)}));return <main className="voter-bg"><div className="voter-wrap"><div className="eyebrow">Official ballot</div><h1>{election.name}</h1><p className="lead">Choose carefully. You will review every selection before final submission.</p><BallotForm electionId={election.id} positions={model}/></div></main>}
