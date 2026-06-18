@@ -23,9 +23,8 @@ export async function POST(req:Request){
       if(!owner)[owner]=await db.insert(users).values({organizationId:org.id,name:ADMIN_ID,email:systemEmail,passwordHash:await hash(ADMIN_PASSWORD,12),role:"owner"}).returning();
       await createSession({sub:owner.id,role:"owner",organizationId:org.id,name:owner.name});return NextResponse.json({ok:true});
     }
-    if(!body.data.organization)return NextResponse.json({error:"Organization code is required."},{status:400});
-    const [org]=await db.select().from(organizations).where(eq(organizations.slug,body.data.organization.toLowerCase())).limit(1);
-    if(!org)return NextResponse.json({error:"Invalid organization or credentials."},{status:401});
+    const [org]=await db.select().from(organizations).where(eq(organizations.slug,"civicballot")).limit(1);
+    if(!org)return NextResponse.json({error:"The administrator must sign in once before voters can log in."},{status:503});
     const [voter]=await db.select().from(voters).where(and(eq(voters.organizationId,org.id),eq(voters.voterCode,body.data.identity.toUpperCase()),eq(voters.disabled,false))).limit(1);
     if(!voter||!await compare(body.data.password,voter.passwordHash))return NextResponse.json({error:"Invalid organization or credentials."},{status:401});
     await createSession({sub:voter.id,role:"voter",organizationId:org.id,name:voter.name});return NextResponse.json({ok:true});
