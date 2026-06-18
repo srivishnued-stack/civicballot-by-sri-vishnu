@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { readSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { auditLogs, elections, eligibility, voters } from "@/lib/db/schema";
+import { auditLogs, candidates, elections, eligibility, positions, voters } from "@/lib/db/schema";
 
 const input = z.object({
   name: z.string().trim().min(4).max(220),
@@ -56,6 +56,10 @@ export async function PATCH(request: Request) {
       if (!allowed) throw new Error("INVALID_TRANSITION");
 
       if (body.data.status === "open") {
+        const ballotPositions = await tx.select({ id: positions.id }).from(positions).where(eq(positions.electionId, election.id));
+        if (!ballotPositions.length) throw new Error("EMPTY_BALLOT");
+        const ballotCandidates = await tx.select({ positionId: candidates.positionId }).from(candidates).where(inArray(candidates.positionId, ballotPositions.map((position) => position.id)));
+        if (ballotPositions.some((position) => !ballotCandidates.some((candidate) => candidate.positionId === position.id))) throw new Error("EMPTY_POSITION");
         const registeredVoters = await tx.select({ id: voters.id }).from(voters).where(and(eq(voters.organizationId, session.organizationId), eq(voters.disabled, false)));
         if (registeredVoters.length) await tx.insert(eligibility).values(registeredVoters.map((voter) => ({ voterId: voter.id, electionId: election.id }))).onConflictDoNothing();
       }
@@ -67,6 +71,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json(updated);
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_TRANSITION") return NextResponse.json({ error: "That election status change is not allowed." }, { status: 409 });
+    if (error instanceof Error && error.message === "EMPTY_BALLOT") return NextResponse.json({ error: "Configure at least one ballot position before opening voting." }, { status: 409 });
+    if (error instanceof Error && error.message === "EMPTY_POSITION") return NextResponse.json({ error: "Every ballot position needs at least one candidate." }, { status: 409 });
     console.error(error);
     return NextResponse.json({ error: "Unable to update the election." }, { status: 500 });
   }
