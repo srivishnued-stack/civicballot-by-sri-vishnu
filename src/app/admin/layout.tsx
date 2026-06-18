@@ -1,7 +1,0 @@
-import Link from "next/link";
-import { BarChart3, ClipboardList, LayoutDashboard, ShieldCheck, Users, Vote } from "lucide-react";
-import { Brand } from "@/components/brand";
-import { LogoutButton } from "@/components/logout-button";
-import { requireRole } from "@/lib/auth/session";
-const nav=[['/admin',LayoutDashboard,'Overview'],['/admin/elections',Vote,'Elections'],['/admin/voters',Users,'Voters'],['/admin/results',BarChart3,'Results'],['/admin/audit',ClipboardList,'Audit log']] as const;
-export default async function AdminLayout({children}:{children:React.ReactNode}){const session=await requireRole("admin");const initials=session.name.split(" ").map(x=>x[0]).slice(0,2).join("");return <div className="admin-shell"><aside className="sidebar"><Brand/><div className="nav-label">Election operations</div>{nav.map(([href,Icon,label])=><Link className="nav-item" href={href} key={href}><Icon/>{label}</Link>)}<div className="nav-label">Security</div><div className="nav-item"><ShieldCheck/>Ballot integrity active</div><div className="sidebar-foot"><LogoutButton/></div></aside><main className="admin-main"><header className="admin-head"><div><h1>Election Administration</h1><p>Secure operations center</p></div><nav className="mobile-nav">{nav.slice(0,3).map(([href,,label])=><Link href={href} key={href}>{label}</Link>)}</nav><div className="top-actions"><span className="secure">Systems operational</span><span className="avatar">{initials}</span></div></header><div className="content">{children}</div></main></div>}
